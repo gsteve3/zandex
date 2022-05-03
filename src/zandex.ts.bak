@@ -1,0 +1,123 @@
+import { format } from '@fast-csv/format';
+import * as csv from 'fast-csv';
+
+
+const path = require('path')
+const fs = require('fs');
+const directoryPath = path.join(__dirname, '../data')
+
+const outFile = path.join(directoryPath, 'out.csv')
+const outFileStream = fs.createWriteStream(outFile)
+
+export const zandex = async (): Promise<boolean> => {
+
+  fs.readdir(directoryPath, { withFileTypes: true }, function (err, files) {
+    //handling error
+    if (err) {
+        return console.log('Unable to scan directory: ' + err);
+    }
+    // https://c2fo.github.io/fast-csv/docs/formatting/examples
+
+
+    // end fast-csv example
+
+
+    var outRows: object[] = [];
+
+
+    //listing all files using forEach
+    files.forEach(function(file) {
+        // Do whatever you want to do with the file
+        // console.log(file);
+        // console.log(file[Symbol.for('type')], file.type == 2);
+        if (file.isDirectory()) {
+          // folder
+          let childPath = path.join(directoryPath, file.name)
+          fs.readdir(childPath, function(err2, files2) {
+            // console.log(files2)
+
+            files2.forEach(function(file2) {
+
+              if (file2.indexOf('.csv') != -1) {
+
+                var dataFilePath = path.join(childPath, file2)
+                console.log(dataFilePath)
+
+                fs.createReadStream(dataFilePath)
+                  .pipe(csv.parse({
+                      headers: true
+                  }))
+                  .on('error', error => console.error(error))
+                  .on('data', row => {
+                    // console.log(row)
+                    // Tiller Headers
+
+
+                    var newRow = {
+                      "col1_empty": "",
+                      "Date": row.Date,
+                      "Description": row.Description,
+                      "Category": "",
+                      "Amount": row.Transfer,
+                      "Account": "home-eqb",
+                      "Account #": "101523357",
+                      "Institution": "eqbank-ca"
+                    }
+
+                    // stream.write(newRow)
+                    console.log(newRow)
+                    console.log('END data')
+
+                    outRows.push(newRow)
+
+
+                  })
+                  .on('end', (rowCount: number) => {
+                    console.log(`END read CSV; Parsed ${rowCount} rows;`)
+                    // console.log(`Parsed ${rowCount} rows`)
+                    // console.log(outRows);
+
+
+                    const stream = format({ // headers: true
+                      headers: [
+                        'col1_empty2',
+                        'Date',
+                        'Description',
+                        'Category',
+                        'Amount',
+                        'Account',
+                        'Account #',
+                        'Institution'
+                      ]
+                    });
+
+                    stream
+                      .pipe(outFileStream)
+                      .on('end', () => {
+                        console.log(outRows)
+                        console.log('END OUTPUT STREAM')
+                        process.exit()
+                    });
+
+                    stream.write(outRows)
+                    stream.end()
+
+
+              }) // end on end
+            }
+          })
+        }
+
+        // loop just once
+        return false;
+    });
+
+
+  })
+
+
+
+
+  return true;
+}
+
